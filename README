@@ -1,0 +1,155 @@
+= sfPropelActAsSortableBehaviorPlugin plugin =
+
+The `sfPropelActAsSortableBehaviorPlugin` is a symfony plugin that provides a new Propel behavior.
+
+Model classes with this behavior enabled become sortable, which means that they have new methods to deal with a position attribute.
+
+== Installation ==
+
+  * Install the plugin
+  
+{{{
+$ symfony plugin-install http://plugins.symfony-project.com/sfPropelActAsSortableBehaviorPlugin
+}}}
+
+  *  Check that the model(s) that you want to make sortable have a position column (must be an integer). If there is none, add it in the `schema.yml`.
+  
+{{{
+item:
+  _attributes: { phpName: Item }
+  id:
+  name:       varchar(50)
+  rank:       integer
+}}}
+
+  * Enable Propel behavior support in `propel.ini`:
+
+{{{
+$ propel.builder.AddBehaviors = true
+}}}
+  
+    If you have to enable the behavior support, rebuild your model:
+
+{{{
+$ symfony propel-build-model
+}}}
+
+  * Activate the behavior for one of your Propel models, specifying the name of the position column (`rank` by default) and whether new elements should be added to the top of the list or to the bottom (bottom by default):
+
+{{{
+// lib/model/Item.php
+class Item extends BaseItem
+{
+  // whatever
+}
+
+sfPropelBehavior::add('Item', array('act_as_sortable' => array(
+  'column' => 'rank',
+  'new_element_position' => 'bottom'
+)));
+}}}
+
+  * Optionnally, you can add three new methods to the Peer class of your model. To do so, just copy and paste the following code inside the Peer class:
+    
+{{{
+public static function retrieveByPosition($position, $con = null)
+{
+  return sfPropelActAsSortableBehavior::retrieveByPosition(__CLASS__, $position, $con);
+}
+
+public static function getMaxPosition($con = null)
+{
+  return sfPropelActAsSortableBehavior::getMaxPosition(__CLASS__, $con);
+}
+
+public static function doSelectOrderByPosition($order = Criteria::ASC, $criteria = null, $con = null)
+{
+  return sfPropelActAsSortableBehavior::doSelectOrderByPosition(__CLASS__, $order, $criteria, $con);
+}
+
+public static function doSort($order, $con = null)
+{
+  return sfPropelActAsSortableBehavior::doSort(__CLASS__, $order, $con);
+}
+}}}
+
+== Usage ==
+
+Upon saving an object declared sortable, its position is automatically set to the next position available, except if the position attribute was already set prior to saving.
+
+Whatever the name of the position column defined in the behavior activation, you can get the value of the position of a sortable object through the `getPosition()` method.
+
+{{{
+$item1 = new Item();
+$item1->save();
+echo $item1->getPosition();
+ => 1
+$item2 = new Item();
+$item2->save();
+echo $item2->getPosition();
+ => 2
+}}}
+
+The behavior adds the following methods to the extended model classes:
+
+  * `getPosition()`: Gets the position of a sortable object
+
+  * `setPosition($position)`: Sets the position of a sortable object. Beware that there is no check made on the value passed. If the position already exists, or if it is superior to the highest position + 1, the method does not throw any exception
+
+  * `getNext()`: Returns the next item in the list, i.e. the one for which position is immediately higher
+  
+  * `getPrevious()`: Returns the previous item in the list, i.e. the one for which position is immediately lower
+  
+  * `isFirst()`: Checks if the object is first in the list, i.e. if it has 1 for position
+  
+  * `isLast()`: Checks if the object is last in the list, i.e. if its position is the highest position
+
+  * `moveUp()`: Moves the object higher in the list, i.e. exchanges its position with the one of the previous object
+  
+  * `moveDown()`: Moves the object lower in the list, i.e. exchanges its position with the one of the next object
+
+  * `swapWith($object)`: Exchanges the position of the object with the one passed as argument
+  
+  * `moveToPosition($object, $newPosition, $con = null)`: Moves the object to a new position, and shifts the position of the objects inbetween the old and new position accordingly
+  
+  * `moveToTop($object, $con = null)`: Moves the object to the top of the list (i.e. gives it position 1), and shifts the position of the objects lower in the list accordingly
+  
+  * `moveToBottom($object, $con = null)`: Moves the object to the top of the list (i.e. gives it position maxPosition), and shifts the position of the objects higher in the list accordingly
+  
+  * `insertAtPosition($object, $position, $con = null)`: Inserts the object in the list at a given position, and shifts the position of the objects lower in the list accordingly
+  
+  * `insertAtTop($object, $con = null)`: Set the position of the object to the top of the list (i.e. gives it position 1), and shifts the position of the objects lower in the list accordingly
+  
+  * `insertAtBottom($object, $con = null)`: Sets the position of the object to the top of the list (i.e. gives it position maxPosition+1)
+
+Behaviors cannot automatically extend the Peer classes (due to limitations of PHP). However, if you followed the optional installation instruction, the Peer class of a sortable model can also have new static methods:
+
+  * `retrieveByPosition($position, $con = null)`: Returns an item from the list based on its position
+  
+  * `getMaxPosition($con = null)`: Returns the highest position of a class of sortable objects
+  
+  * `doSelectOrderByPosition($order = Criteria::ASC, $criteria = null, $con = null)`: Returns an array of sortable objects ordered by position
+  
+  * `doSort($order, $con = null)`: Reorders a set of sortable objects based on a list of id/position. Beware that there is no check made on the positions passed, so incoherent positions will result in an incoherent list.
+
+If you don't want to copy the code, you can still use the static methods of the `sfPropelActAsSortableBehavior` class, with an additional parameter at the beginning being the Peer class name.
+
+== Todo ==
+
+  * add more documentation and usage examples
+  * add `removeFromList()` method to remove an element from the list without deleting it
+  
+== Changelog ==
+
+=== Trunk ===
+
+ * francois: Added `insertAtTop()`, and `insertAtBottom()` methods with tests
+ * francois: Added a `new_element_position` option to the behavior initialization (defaults to 'bottom' and therefore preserves BC)
+
+=== 2007-08-07 | 0.6.1 Beta ===
+
+ * Jan Kunzmann: Added `moveToPosition($position)`, `moveToTop()`, `moveToBottom()`, and `insertAtPosition($position)` methods with tests
+
+=== 2007-07-04 | 0.6.0 Beta === 
+
+ * francois: Initial release
