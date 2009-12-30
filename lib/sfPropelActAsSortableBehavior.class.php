@@ -6,12 +6,12 @@
  * @author     Francois Zaninotto <francois.zaninotto@symfony-project.com>
  */
 class sfPropelActAsSortableBehavior
-{  
+{
   protected static function getClassFromPeerClass($peerClass)
   {
     return substr($peerClass, 0, -4);
   }
-  
+
   /**
    * Returns an item from the list based on its position
    *
@@ -30,7 +30,7 @@ class sfPropelActAsSortableBehavior
     $c = new Criteria;
     $c->add($rankColumnPhpName, $position);
 
-    return call_user_func(array($peerClass, 'doSelectOne'), $c, $con); 
+    return call_user_func(array($peerClass, 'doSelectOne'), $c, $con);
   }
 
   /**
@@ -45,14 +45,14 @@ class sfPropelActAsSortableBehavior
   {
     $rankColumnName = sfConfig::get('propel_behavior_act_as_sortable_'.self::getClassFromPeerClass($peerClass).'_column', 'rank');
     if(!$con) $con = Propel::getConnection(constant("$peerClass::DATABASE_NAME"));
-    
-    $sql = sprintf('SELECT MAX(%s) AS max FROM %s', 
+
+    $sql = sprintf('SELECT MAX(%s) AS max FROM %s',
       $rankColumnName,
       constant("$peerClass::TABLE_NAME")
-    ); 
+    );
     $rs = $con->prepareStatement($sql)->executeQuery();
     $rs->next();
-    
+
     return $rs->getInt('max');
   }
 
@@ -71,8 +71,8 @@ class sfPropelActAsSortableBehavior
     $rankColumnName = sfConfig::get('propel_behavior_act_as_sortable_'.self::getClassFromPeerClass($peerClass).'_column', 'rank');
     $rankColumnPhpName = call_user_func(array($peerClass, 'translateFieldName'), $rankColumnName, BasePeer::TYPE_FIELDNAME, BasePeer::TYPE_COLNAME);
     if(!$con) $con = Propel::getConnection(constant("$peerClass::DATABASE_NAME"));
-    
-    if ($criteria === null) 
+
+    if ($criteria === null)
     {
       $criteria = new Criteria();
     }
@@ -80,9 +80,9 @@ class sfPropelActAsSortableBehavior
     {
       $criteria = clone $criteria;
     }
-    
+
     $criteria->clearOrderByColumns();
-    
+
     if($order == Criteria::ASC)
     {
       $criteria->addAscendingOrderByColumn($rankColumnPhpName);
@@ -92,9 +92,9 @@ class sfPropelActAsSortableBehavior
       $criteria->addDescendingOrderByColumn($rankColumnPhpName);
     }
 
-    return call_user_func(array($peerClass, 'doSelect'), $criteria, $con); 
+    return call_user_func(array($peerClass, 'doSelect'), $criteria, $con);
   }
-  
+
   /**
    * Reorders a set of sortable objects based on a list of id/position
    * Beware that there is no check made on the positions passed
@@ -109,11 +109,11 @@ class sfPropelActAsSortableBehavior
   public static function doSort($peerClass, $order, $con = null)
   {
     if(!$con) $con = Propel::getConnection(constant("$peerClass::DATABASE_NAME"));
-    try 
+    try
     {
       $con->begin();
 
-      foreach ($order as $id => $rank) 
+      foreach ($order as $id => $rank)
       {
         $item = call_user_func(array($peerClass, 'retrieveByPk'), $id);
 
@@ -125,7 +125,7 @@ class sfPropelActAsSortableBehavior
       }
 
       $con->commit();
-      return true;    
+      return true;
     }
     catch (Exception $e)
     {
@@ -149,7 +149,7 @@ class sfPropelActAsSortableBehavior
   /**
    * Sets the position of a sortable object
    * Beware that there is no check made on the value passed
-   * If the position already exists, or if it is superior to the highest position + 1, 
+   * If the position already exists, or if it is superior to the highest position + 1,
    * the method does not throw any exception
    *
    * @param mixed sortable object
@@ -170,9 +170,9 @@ class sfPropelActAsSortableBehavior
    **/
   public function getNext($object)
   {
-    return self::retrieveByPosition(get_class($object).'Peer', self::getPosition($object) + 1);
+    return self::retrieveByPosition(get_class($object->getPeer()), self::getPosition($object) + 1);
   }
-  
+
   /**
    * Returns the previous item in the list, i.e. the one for which position is immediately lower
    *
@@ -182,7 +182,7 @@ class sfPropelActAsSortableBehavior
    **/
   public function getPrevious($object)
   {
-    return self::retrieveByPosition(get_class($object).'Peer', self::getPosition($object) - 1);
+    return self::retrieveByPosition(get_class($object->getPeer()), self::getPosition($object) - 1);
   }
 
   /**
@@ -191,7 +191,7 @@ class sfPropelActAsSortableBehavior
    * @param mixed sortable object
    *
    * @return boolean True if the item is the first in the list
-   **/  
+   **/
   public function isFirst($object)
   {
     return self::getPosition($object) == 1;
@@ -203,10 +203,10 @@ class sfPropelActAsSortableBehavior
    * @param mixed sortable object
    *
    * @return boolean True if the item is the last in the list
-   **/    
+   **/
   public function isLast($object)
   {
-    return self::getPosition($object) == self::getMaxPosition(get_class($object).'Peer');
+    return self::getPosition($object) == self::getMaxPosition(get_class($object->getPeer()));
   }
 
   /**
@@ -220,7 +220,7 @@ class sfPropelActAsSortableBehavior
   {
     return self::isFirst($object) ? false : self::swapWith($object, self::getPrevious($object));
   }
-  
+
   /**
    * Moves the object lower in the list, i.e. exchanges its position with the one of the next object
    *
@@ -246,20 +246,19 @@ class sfPropelActAsSortableBehavior
    **/
   public function swapWith($object, $item, $con = null)
   {
-    $class = get_class($object);
-    $peerClass = $class.'Peer';
+    $peerClass = get_class($object->getPeer());
     if(!$con) $con = Propel::getConnection(constant("$peerClass::DATABASE_NAME"));
     try
     {
       $con->begin();
-      $rankColumnName = sfConfig::get('propel_behavior_act_as_sortable_'.$class.'_column', 'rank');
+      $rankColumnName = sfConfig::get('propel_behavior_act_as_sortable_'.get_class($object).'_column', 'rank');
       $oldRank = self::getPosition($object);
       $newRank = self::getPosition($item);
       self::setPosition($object, $newRank);
       $object->save();
       self::setPosition($item, $oldRank);
       $item->save();
-   
+
       $con->commit();
       return array($oldRank, $newRank);
     }
@@ -269,9 +268,9 @@ class sfPropelActAsSortableBehavior
       throw $e;
     }
   }
-  
+
   /**
-   * Moves the object to a new position, and shifts the position 
+   * Moves the object to a new position, and shifts the position
    * Of the objects inbetween the old and new position accordingly
    *
    * @param mixed sortable object
@@ -284,9 +283,8 @@ class sfPropelActAsSortableBehavior
    **/
   public function moveToPosition($object, $newPosition, $con = null)
   {
-    $class = get_class($object);
-    $peerClass = $class.'Peer';
-    $rankColumnName = sfConfig::get('propel_behavior_act_as_sortable_'.$class.'_column', 'rank');
+    $peerClass = get_class($object->getPeer());
+    $rankColumnName = sfConfig::get('propel_behavior_act_as_sortable_'.get_class($object).'_column', 'rank');
     if(!$con) $con = Propel::getConnection(constant("$peerClass::DATABASE_NAME"));
 
     $oldPosition = self::getPosition($object);
@@ -299,7 +297,7 @@ class sfPropelActAsSortableBehavior
       // Move the object away
       self::setPosition($object, self::getMaxPosition($peerClass) + 1);
       $object->save();
-      
+
       // Shift the objects between the old and the new position
       $query = sprintf('UPDATE %s SET %s = %s %s 1 WHERE %s BETWEEN ? AND ?',
         constant("$peerClass::TABLE_NAME"),
@@ -328,7 +326,7 @@ class sfPropelActAsSortableBehavior
   }
 
   /**
-   * Moves the object to the top of the list (i.e. gives it position 1), 
+   * Moves the object to the top of the list (i.e. gives it position 1),
    * And shifts the position of the objects lower in the list accordingly
    *
    * @param mixed sortable object
@@ -337,14 +335,14 @@ class sfPropelActAsSortableBehavior
    * @return integer the old object's position
    *
    * @throws Exception if the database cannot execute the position updates
-   **/  
+   **/
   public function moveToTop($object, $con = null)
   {
     return self::moveToPosition($object, 1, $con);
   }
-    
+
   /**
-   * Moves the object to the top of the list (i.e. gives it position maxPosition), 
+   * Moves the object to the top of the list (i.e. gives it position maxPosition),
    * And shifts the position of the objects higher in the list accordingly
    *
    * @param mixed sortable object
@@ -353,17 +351,14 @@ class sfPropelActAsSortableBehavior
    * @return integer the old object's position
    *
    * @throws Exception if the database cannot execute the position updates
-   **/  
+   **/
   public function moveToBottom($object, $con = null)
   {
-    $class = get_class($object);
-    $peerClass = $class.'Peer';
-
-    return self::moveToPosition($object, self::getMaxPosition($peerClass), $con);
+    return self::moveToPosition($object, self::getMaxPosition(get_class($object->getPeer())), $con);
   }
 
   /**
-   * Inserts the object in the list at a given position, 
+   * Inserts the object in the list at a given position,
    * And shifts the position of the objects lower in the list accordingly
    *
    * @param mixed sortable object
@@ -376,15 +371,14 @@ class sfPropelActAsSortableBehavior
    **/
   public function insertAtPosition($object, $position, $con = null)
   {
-    $class = get_class($object);
-    $peerClass = $class.'Peer';
-    $rankColumnName = sfConfig::get('propel_behavior_act_as_sortable_'.$class.'_column', 'rank');
+    $peerClass = get_class($object->getPeer());
+    $rankColumnName = sfConfig::get('propel_behavior_act_as_sortable_'.get_class($object).'_column', 'rank');
     if(!$con) $con = Propel::getConnection(constant("$peerClass::DATABASE_NAME"));
 
     try
     {
       $con->begin();
-      
+
       // Shift the objects with a position higher than the given position
       $query = sprintf('UPDATE %s SET %s = %s + 1 WHERE %s >= ?',
         constant("$peerClass::TABLE_NAME"),
@@ -408,10 +402,10 @@ class sfPropelActAsSortableBehavior
       $con->rollback();
       throw $e;
     }
-  } 
+  }
 
   /**
-   * Set the position of the object to the top of the list (i.e. gives it position 1), 
+   * Set the position of the object to the top of the list (i.e. gives it position 1),
    * And shifts the position of the objects lower in the list accordingly
    *
    * @param mixed sortable object
@@ -420,12 +414,12 @@ class sfPropelActAsSortableBehavior
    * @return integer the old object's position
    *
    * @throws Exception if the database cannot execute the position updates
-   **/  
+   **/
   public function insertAtTop($object, $con = null)
   {
     return self::insertAtPosition($object, 1, $con);
   }
-    
+
   /**
    * Sets the position of the object to the top of the list (i.e. gives it position maxPosition+1)
    *
@@ -435,30 +429,27 @@ class sfPropelActAsSortableBehavior
    * @return integer the old object's position
    *
    * @throws Exception if the database cannot execute the position updates
-   **/  
+   **/
   public function insertAtBottom($object, $con = null)
   {
-    $class = get_class($object);
-    $peerClass = $class.'Peer';
-    self::setPosition($object, self::getMaxPosition($peerClass)+1, $con);
-    
+    self::setPosition($object, self::getMaxPosition(get_class($object->getPeer()))+1, $con);
+
     return $object->save($con);
   }
-    
+
   /**
    * Sets the position of a new object before saving it
    *
    * @param mixed sortable object
    * @param Connection an optional connection object
    *
-   **/  
+   **/
   public function preSave($object, $con = null)
   {
     $class = get_class($object);
-    $peerClass = $class.'Peer';
     $rankColumnName = sfConfig::get('propel_behavior_act_as_sortable_'.$class.'_column', 'rank');
-    $rankColumnPhpName = call_user_func(array($peerClass, 'translateFieldName'), $rankColumnName, BasePeer::TYPE_FIELDNAME, BasePeer::TYPE_COLNAME);
-    
+    $rankColumnPhpName = call_user_func(array(get_class($object->getPeer()), 'translateFieldName'), $rankColumnName, BasePeer::TYPE_FIELDNAME, BasePeer::TYPE_COLNAME);
+
     // new records need to be initialized with position
     if($object->isNew() && !$object->isColumnModified($rankColumnPhpName))
     {
@@ -467,12 +458,12 @@ class sfPropelActAsSortableBehavior
       {
         self::insertAtBottom($object, $con);
       }
-      else 
+      else
       {
         self::insertAtTop($object, $con);
       }
     }
-  } 
+  }
 
   /**
    * Decreases all the positions of the items of the same class with higher positions
@@ -480,14 +471,13 @@ class sfPropelActAsSortableBehavior
    * @param mixed sortable object
    * @param Connection an optional connection object
    *
-   **/  
+   **/
   public function preDelete($object, $con = null)
-  {  
-    $class = get_class($object);
-    $peerClass = $class.'Peer';
-    $rankColumnName = sfConfig::get('propel_behavior_act_as_sortable_'.$class.'_column', 'rank');
+  {
+    $peerClass = get_class($object->getPeer());
+    $rankColumnName = sfConfig::get('propel_behavior_act_as_sortable_'.get_class($object).'_column', 'rank');
     if(!$con) $con = Propel::getConnection(constant("$peerClass::DATABASE_NAME"));
-    
+
     $query = sprintf('UPDATE %s SET %s = %s - 1 WHERE %s > ?',
       constant("$peerClass::TABLE_NAME"),
       $rankColumnName,
